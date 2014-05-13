@@ -240,6 +240,73 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         return (completions,
                 sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
+class StaticLoader(CompletionLoader):
+    """docstring for StaticLoader"""
+
+    Instances = []
+
+    def __new__(cls, **kwargs):
+        try:
+            return cls.Instances[cls.__name__]
+        except KeyError:
+            i = cls(**kwargs)
+            cls.Instances[cls.__name__] = i
+            return i
+
+
+class ViewLoader(CompletionLoader):
+    """docstring for ViewLoader"""
+
+    Instances = dict()
+
+    def __new__(cls, view = None, **kwargs):
+        try:
+            return cls.Instances[view.id()]
+        except KeyError:
+            i = cls(view = view)
+            cls.Instances[view.id()] = i
+            return i
+
+    def __init__(self, view = None, **kwargs):
+        super(ViewLoader, self).__init__()
+        self.view = view
+
+
+class FileLoader(CompletionLoader):
+    """docstring for ViewLoader"""
+
+    Instances = dict()
+
+    def __new__(cls, file_ = None, **kwargs):
+        try:
+            return cls.Instances[file]
+        except KeyError:
+            i = cls(file_ = file_)
+            cls.Instances[file_] = i
+            return i
+
+    def __init__(self, file_ = None, **kwargs):
+        super(FileLoader, self).__init__()
+        self.file_ = file_
+
+
+class PathLoader(CompletionLoader):
+    """docstring for ViewLoader"""
+
+    Instances = dict()
+
+    def __new__(cls, path = None, **kwargs):
+        try:
+            return cls.Instances[file]
+        except KeyError:
+            i = cls(path = path)
+            cls.Instances[path] = i
+            return i
+
+    def __init__(self, path = None, **kwargs):
+        super(PathLoader, self).__init__()
+        self.path = path
+        
 
 class ViewData(object):
     """Stores data for a view."""
