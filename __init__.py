@@ -117,6 +117,10 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
     """True to load completions asynchronously."""
     LoadAsync = False
 
+    BeforeLoadCallbacks = []
+
+    AfterLoadCallbacks = []
+
     def __init__(self):
         super(CompletionLoader, self).__init__()
         self.completions = completions
@@ -239,6 +243,15 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
 
         return (completions,
                 sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+    @classmethod
+    def add_on_before_load_callback(cls, callback):
+        CompletionLoader.BeforeLoadCallbacks.append(callback)
+
+    @classmethod
+    def add_on_after_load_callback(cls, callback):
+        CompletionLoader.AfterLoadCallbacks.append(callback)
+
 
 class StaticLoader(CompletionLoader):
     """docstring for StaticLoader"""
