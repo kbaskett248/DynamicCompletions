@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import inspect
 import threading
 
 import sublime
@@ -153,15 +154,19 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         return True
 
     @classmethod
+    def add_loader_to_view(cls, view, **kwargs):
+        l = cls(view = view, **kwargs)
+        ViewData.add_loader_to_view(view, l)
+
+    @classmethod
+    def remove_loader_from_view(cls, view, **kwargs):
+        l = cls(view = view, **kwargs)
+        ViewData.remove_loader_from_view(view, l)
+
+    @classmethod
     def get_loaders_for_view(cls, view):
         """Returns a list of CompletionLoader objects for the view."""
-        loaders = set()
-        for l in CompletionLoader.get_plugins():
-            if l.view_scope_check(view) <= 0:
-                continue
-            elif l.view_check(view):
-                loaders.append(t(view))
-        return loaders
+        return [c for c in ViewData.get_loaders_for_view(view) if cls in inspect.getmro(c)]
 
     def get_completions(self, completion_types, completion_queue, wait = False, **kwargs):
         """Populates completion_queue for Completers with matching completion_types.
@@ -333,7 +338,7 @@ class ViewData(object):
         self.scope = ViewData.scope_from_view(view)
         self.update_triggers(view)
         self.update_triggers(view)
-        self.loaders = dict()
+        self.loaders = []
 
     @classmethod
     def get_data(cls, view):
@@ -364,16 +369,21 @@ class ViewData(object):
         return d.triggers
 
     @classmethod
-    def get_loaders_for_view(cls, view, type_ = None):
+    def add_loader_to_view(cls, view, loader):
         d = cls.get_data(view)
-        if type_ is None:
-            return list(d.loaders.values())
-        else:
-            try:
-                return d.loaders[type_]
-            except KeyError:
-                logger.warning('No CompletionLoaders if type %s installed', type_)
-                return []
+        d.loaders.append(loader)
+
+    @classmethod
+    def remove_loader_from_view(cls, view, loader):
+        try:
+            d.loaders.remove(loader)
+        except KeyError:
+            logger.warning('Loader %s is not assigned to the view', loader)
+
+    @classmethod
+    def get_loaders_for_view(cls, view):
+        d = cls.get_data(view)
+        return d.loaders
 
     def update_triggers(self, view):
         self.triggers_hash = ViewData.get_triggers_hash()
