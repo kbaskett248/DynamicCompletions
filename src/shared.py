@@ -48,7 +48,7 @@ class MiniPluginMeta(ABCMeta):
 
         If additional registration needs to be done by extending classes, this
         method can be overridden. However, you should always call the parent
-        classes register method to ensure that the class is registered with 
+        class's register method to ensure that the class is registered with 
         the top most parent class.
 
         """
