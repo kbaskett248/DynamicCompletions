@@ -191,7 +191,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         logger.debug('included_completions = %s', included_completions)
 
         # If completions exist, put them on the queue
-        if self.completions:
+        if self.completions and (not self.refresh_completions()):
             completion_queue.put(self.filter_completions(included_completions, **kwargs))
             return
         # Otherwise, if we're not already loading completions, load them.
@@ -220,6 +220,10 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         # Add completions to queue and return
         completion_queue.put(self.filter_completions(included_completions, **kwargs))
         return
+
+    def refresh_completions(self):
+        """Return True if the completions need to be reloaded."""
+        return False
 
     @abstractmethod
     def load_completions(self, **kwargs):
@@ -299,6 +303,10 @@ class ViewLoader(CompletionLoader):
         super(ViewLoader, self).__init__()
         self.view = view
 
+    def refresh_completions(self):
+        """Return True if the completions need to be reloaded."""
+        return True
+
 
 class FileLoader(CompletionLoader):
     """CompletionLoader for completions extracted from another file.
@@ -322,6 +330,19 @@ class FileLoader(CompletionLoader):
     def __init__(self, file_path = None, **kwargs):
         super(FileLoader, self).__init__()
         self.file_path = file_path
+        self.last_modified_time = self.get_file_update_time()
+
+    def refresh_completions(self):
+        """Return True if the completions need to be reloaded."""
+        t = self.get_file_update_time()
+        if t < self.last_modified_time:
+            return False
+        self.last_modified_time = t
+        return True
+
+    def get_file_update_time(self):
+        """Return the last time the file was modified."""
+        return os.path.getmtime(self.file_path)
 
 
 class PathLoader(CompletionLoader):
