@@ -124,12 +124,12 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
 
     def __init__(self):
         super(CompletionLoader, self).__init__()
-        self.completions = completions
+        self.completions = []
         self.loading = False
 
     @classmethod
     @abstractmethod
-    def completion_types():
+    def completion_types(cls):
         """Return a set of completion types that this CompletionLoader can return."""
         pass
 
@@ -166,7 +166,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
     @classmethod
     def get_loaders_for_view(cls, view):
         """Returns a list of CompletionLoader objects for the view."""
-        return [c for c in ViewData.get_loaders_for_view(view) if cls in inspect.getmro(c)]
+        return [l for l in ViewData.get_loaders_for_view(view) if cls in inspect.getmro(l.__class__)]
 
     def get_completions(self, completion_types, completion_queue, wait = False, **kwargs):
         """Populates completion_queue for Completers with matching completion_types.
@@ -184,7 +184,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         is called either way to load the completions.
 
         """
-        included_completions = set(completion_types).intersection(set(self.CompletionTypes))
+        included_completions = set(completion_types).intersection(set(self.completion_types()))
         if not included_completions:
             return
 
@@ -259,29 +259,39 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
 
 
 class StaticLoader(CompletionLoader):
-    """docstring for StaticLoader"""
+    """CompletionLoader for completions that do not change.
 
-    Instances = []
+    For example, a fixed list of values.
+
+    """
 
     def __new__(cls, **kwargs):
+        if 'Instances' not in cls.__dict__.keys():
+            cls.Instances = dict()
+
         try:
             return cls.Instances[cls.__name__]
         except KeyError:
-            i = cls(**kwargs)
+            i = super(StaticLoader, cls).__new__(cls)
             cls.Instances[cls.__name__] = i
             return i
 
 
 class ViewLoader(CompletionLoader):
-    """docstring for ViewLoader"""
+    """CompletionLoader for completions extracted from a view.
 
-    Instances = dict()
+    This will normally be the current view, but it could be another view.
+
+    """
 
     def __new__(cls, view = None, **kwargs):
+        if 'Instances' not in cls.__dict__.keys():
+            cls.Instances = dict()
+
         try:
             return cls.Instances[view.id()]
         except KeyError:
-            i = cls(view = view)
+            i = super(ViewLoader, cls).__new__(cls)
             cls.Instances[view.id()] = i
             return i
 
@@ -291,33 +301,45 @@ class ViewLoader(CompletionLoader):
 
 
 class FileLoader(CompletionLoader):
-    """docstring for ViewLoader"""
+    """CompletionLoader for completions extracted from another file.
 
-    Instances = dict()
+    For example, this could extract completions from an include file or it
+    could extract completions from a file that is updated by an external tool.
 
-    def __new__(cls, file_ = None, **kwargs):
+    """
+
+    def __new__(cls, file_path = None, **kwargs):
+        if 'Instances' not in cls.__dict__.keys():
+            cls.Instances = dict()
+
         try:
             return cls.Instances[file]
         except KeyError:
-            i = cls(file_ = file_)
-            cls.Instances[file_] = i
+            i = super(FileLoader, cls).__new__(cls)
+            cls.Instances[file_path] = i
             return i
 
-    def __init__(self, file_ = None, **kwargs):
+    def __init__(self, file_path = None, **kwargs):
         super(FileLoader, self).__init__()
-        self.file_ = file_
+        self.file_path = file_path
 
 
 class PathLoader(CompletionLoader):
-    """docstring for ViewLoader"""
+    """CompletionLoader for completions extracted from a fixed path.
 
-    Instances = dict()
+    For example, this could extract additional completions from multiple
+    files in the same directory and cache them together.
+
+    """
 
     def __new__(cls, path = None, **kwargs):
+        if 'Instances' not in cls.__dict__.keys():
+            cls.Instances = dict()
+
         try:
             return cls.Instances[file]
         except KeyError:
-            i = cls(path = path)
+            i = super(ViewLoader, cls).__new__(cls)
             cls.Instances[path] = i
             return i
 
@@ -337,8 +359,7 @@ class ViewData(object):
         self.id = view.id()
         self.scope = ViewData.scope_from_view(view)
         self.update_triggers(view)
-        self.update_triggers(view)
-        self.loaders = []
+        self.loaders = set()
 
     @classmethod
     def get_data(cls, view):
@@ -371,7 +392,7 @@ class ViewData(object):
     @classmethod
     def add_loader_to_view(cls, view, loader):
         d = cls.get_data(view)
-        d.loaders.append(loader)
+        d.loaders.add(loader)
 
     @classmethod
     def remove_loader_from_view(cls, view, loader):
