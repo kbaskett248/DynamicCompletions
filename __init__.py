@@ -261,6 +261,16 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
     def add_on_after_load_callback(cls, callback):
         CompletionLoader.AfterLoadCallbacks.append(callback)
 
+    @classmethod
+    def run_on_before_load_callbacks(cls, view, prefix, locations, completion_types):
+        for c in CompletionLoader.BeforeLoadCallbacks:
+            c(view, prefix, locations, completion_types)
+
+    @classmethod
+    def run_on_after_load_callbacks(cls, view, prefix, locations, completion_types, completions):
+        for c in CompletionLoader.AfterLoadCallbacks:
+            c(view, prefix, locations, completion_types, completions)
+
 
 class StaticLoader(CompletionLoader):
     """CompletionLoader for completions that do not change.
