@@ -191,10 +191,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
     @abstractmethod
     def instances_for_view(cls, view):
         """Returns a list of instances of the given class to be used for the given view."""
-        if cls.full_view_check(view):
-            return [cls()]
-        else:
-            return []
+        return [cls()]
 
     @classmethod
     def add_loader_to_view(cls, view, **kwargs):
@@ -348,10 +345,7 @@ class StaticLoader(CompletionLoader):
             pass
         except AttributeError:
             pass
-        if cls.full_view_check(view):
-            return [cls()]
-        else:
-            return []
+        return [cls()]
 
 
 class ViewLoader(CompletionLoader):
@@ -383,10 +377,7 @@ class ViewLoader(CompletionLoader):
             pass
         except AttributeError:
             pass
-        if cls.full_view_check(view):
-            return [cls(view = view)]
-        else:
-            return []
+        return [cls(view = view)]
 
     def refresh_completions(self):
         """Return True if the completions need to be reloaded."""

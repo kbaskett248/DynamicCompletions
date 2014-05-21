@@ -34,7 +34,8 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
         for c in CompletionLoader.get_plugins():
             # logger.debug('c = %s', c)
             # logger.debug('c.instances_for_view(view) = %s', c.instances_for_view(view))
-            loaders.update(c.instances_for_view(view))
+            if c.full_view_check(view):
+                loaders.update(c.instances_for_view(view))
 
         # loaders = CompletionLoader.get_loaders_for_view(view)
         logger.debug('loaders = %s', loaders)
