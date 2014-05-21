@@ -164,6 +164,18 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         ViewData.remove_loader_from_view(view, l)
 
     @classmethod
+    def set_view_attr(view, name, value):
+        ViewData.set_view_attr(view, name, value)
+
+    @classmethod
+    def get_view_attr(view, name, default = None):
+        return ViewData.get_view_attr(view, name, default)
+
+    @classmethod
+    def has_view_attr(view, name, default = None):
+        return ViewData.has_view_attr(view, name)        
+
+    @classmethod
     def get_loaders_for_view(cls, view):
         """Returns a list of CompletionLoader objects for the view."""
         return [l for l in ViewData.get_loaders_for_view(view) if cls in inspect.getmro(l.__class__)]
@@ -454,5 +466,21 @@ class ViewData(object):
     @staticmethod
     def get_triggers_hash():
         return hash(str(CompletionTrigger.get_plugins()))
+
+    @classmethod
+    def set_view_attr(cls, view, name, value):
+        d = cls.get_data(view)
+        setattr(d, name, value)
+
+    @classmethod
+    def get_view_attr(cls, view, name, default):
+        d = cls.get_data(view)
+        return getattr(d, name, default)
+
+    @classmethod
+    def has_view_attr(cls, view, name):
+        d = cls.get_data(view)
+        return hasattr(d, name)
+
         
         
