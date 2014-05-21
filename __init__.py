@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import inspect
+import os
 import threading
 
 import sublime
@@ -122,11 +123,37 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
 
     AfterLoadCallbacks = []
 
-    def __init__(self):
+    def __new__(cls, *args, **kwargs):
+        if 'Instances' not in cls.__dict__.keys():
+            cls.Instances = dict()
+        return super(CompletionLoader, cls).__new__(cls)
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the CompletionLoader.
+
+        This should be called by subclasses after all initialization for that
+        class is done so that the instance_key property has access to all 
+        needed attributes.
+
+        """
         super(CompletionLoader, self).__init__()
         self.completions = []
         self.loading = False
+        self.add_instance()
 
+    @property
+    def instance_key(self):
+        """Return a unique key used to identify the CompletionLoader.
+
+        This is used when caching the instance.
+
+        """
+        return self.__class__.__name__
+
+    def add_instance(self):
+        """Adds the current instance to the Instances list."""
+        self.Instances[self.instance_key] = self
+    
     @classmethod
     @abstractmethod
     def completion_types(cls):
@@ -152,6 +179,22 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
     def view_check(cls, view):
         """Returns True if the CompletionLoader should be enabled for the given view."""
         return True
+
+    @classmethod
+    def full_view_check(cls, view):
+        if cls.view_scope_check(view) <= 0:
+            return False
+        else:
+            return cls.view_check(view)
+
+    @classmethod
+    @abstractmethod
+    def instances_for_view(cls, view):
+        """Returns a list of instances of the given class to be used for the given view."""
+        if cls.full_view_check(view):
+            return [cls()]
+        else:
+            return []
 
     @classmethod
     def add_loader_to_view(cls, view, **kwargs):
@@ -291,16 +334,19 @@ class StaticLoader(CompletionLoader):
 
     """
 
-    def __new__(cls, **kwargs):
-        if 'Instances' not in cls.__dict__.keys():
-            cls.Instances = dict()
-
+    @classmethod
+    def instances_for_view(cls, view):
+        """Returns a list of instances of the given class to be used for the given view."""
         try:
-            return cls.Instances[cls.__name__]
+            return [cls.Instances[cls.__name__]]
         except KeyError:
-            i = super(StaticLoader, cls).__new__(cls)
-            cls.Instances[cls.__name__] = i
-            return i
+            pass
+        except AttributeError:
+            pass
+        if cls.full_view_check(view):
+            return [cls()]
+        else:
+            return []
 
 
 class ViewLoader(CompletionLoader):
@@ -310,20 +356,32 @@ class ViewLoader(CompletionLoader):
 
     """
 
-    def __new__(cls, view = None, **kwargs):
-        if 'Instances' not in cls.__dict__.keys():
-            cls.Instances = dict()
-
-        try:
-            return cls.Instances[view.id()]
-        except KeyError:
-            i = super(ViewLoader, cls).__new__(cls)
-            cls.Instances[view.id()] = i
-            return i
-
     def __init__(self, view = None, **kwargs):
-        super(ViewLoader, self).__init__()
         self.view = view
+        super(ViewLoader, self).__init__(**kwargs)
+
+    @property
+    def instance_key(self):
+        """Return a unique key used to identify the CompletionLoader.
+
+        This is used when caching the instance.
+
+        """
+        return self.view.id()
+
+    @classmethod
+    def instances_for_view(cls, view):
+        """Returns a list of instances of the given class to be used for the given view."""
+        try:
+            return [cls.Instances[view.id()]]
+        except KeyError:
+            pass
+        except AttributeError:
+            pass
+        if cls.full_view_check(view):
+            return [cls(view = view)]
+        else:
+            return []
 
     def refresh_completions(self):
         """Return True if the completions need to be reloaded."""
@@ -338,26 +396,24 @@ class FileLoader(CompletionLoader):
 
     """
 
-    def __new__(cls, file_path = None, **kwargs):
-        if 'Instances' not in cls.__dict__.keys():
-            cls.Instances = dict()
-
-        try:
-            return cls.Instances[file]
-        except KeyError:
-            i = super(FileLoader, cls).__new__(cls)
-            cls.Instances[file_path] = i
-            return i
-
     def __init__(self, file_path = None, **kwargs):
-        super(FileLoader, self).__init__()
         self.file_path = file_path
         self.last_modified_time = self.get_file_update_time()
+        super(FileLoader, self).__init__(**kwargs)
+
+    @property
+    def instance_key(self):
+        """Return a unique key used to identify the CompletionLoader.
+
+        This is used when caching the instance.
+
+        """
+        return self.file_path
 
     def refresh_completions(self):
         """Return True if the completions need to be reloaded."""
         t = self.get_file_update_time()
-        if t < self.last_modified_time:
+        if t <= self.last_modified_time:
             return False
         self.last_modified_time = t
         return True
@@ -375,20 +431,18 @@ class PathLoader(CompletionLoader):
 
     """
 
-    def __new__(cls, path = None, **kwargs):
-        if 'Instances' not in cls.__dict__.keys():
-            cls.Instances = dict()
-
-        try:
-            return cls.Instances[file]
-        except KeyError:
-            i = super(ViewLoader, cls).__new__(cls)
-            cls.Instances[path] = i
-            return i
-
     def __init__(self, path = None, **kwargs):
-        super(PathLoader, self).__init__()
         self.path = path
+        super(PathLoader, self).__init__(**kwargs)
+
+    @property
+    def instance_key(self):
+        """Return a unique key used to identify the CompletionLoader.
+
+        This is used when caching the instance.
+
+        """
+        return self.path
         
 
 class ViewData(object):

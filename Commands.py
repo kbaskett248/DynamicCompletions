@@ -14,16 +14,10 @@ except ImportError:
     logger = logging.getLogger(__name__)
 
 class DynamicCompletionsCommand(sublime_plugin.EventListener):
-    """
-    
-
-    """
+    """General command for loading completions."""
 
     def on_query_completions(self, view, prefix, locations):
         """Returns a list of completions for the word that is being typed."""
-
-
-
         logger.debug('DynamicCompletions - getting completion types')
         completion_types = CompletionTrigger.get_completion_types(view, prefix, locations)
         logger.debug(completion_types)
@@ -36,8 +30,14 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
                                                       locations,
                                                       completion_types)
 
-        loaders = CompletionLoader.get_loaders_for_view(view)
-        logger.debug(loaders)
+        loaders = set()
+        for c in CompletionLoader.get_plugins():
+            # logger.debug('c = %s', c)
+            # logger.debug('c.instances_for_view(view) = %s', c.instances_for_view(view))
+            loaders.update(c.instances_for_view(view))
+
+        # loaders = CompletionLoader.get_loaders_for_view(view)
+        logger.debug('loaders = %s', loaders)
 
         if not loaders:
             return
@@ -46,16 +46,15 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
         self.add_completions_to_queue(view, completion_queue, completion_types, loaders)
 
         completions = self.get_completions_from_queue(completion_queue)
-        logger.debug(completions)
+        # logger.debug(completions)
 
         CompletionLoader.run_on_after_load_callbacks(view,
-                                                      prefix,
-                                                      locations,
-                                                      completion_types,
-                                                      completions)
+                                                     prefix,
+                                                     locations,
+                                                     completion_types,
+                                                     completions)
         
         return completions
-
 
     def add_completions_to_queue(self, view, completion_queue, completion_types, loaders):
         """Adds completions to the completion_queue.
