@@ -244,13 +244,16 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
             return
 
         logger.debug('included_completions = %s', included_completions)
+        logger.debug("%s.loading = %s", self, self.loading)
 
-        # If completions exist, put them on the queue
-        if self.completions and (not self.refresh_completions()):
-            completion_queue.put(self.filter_completions(included_completions, **kwargs))
-            return
-        # Otherwise, if we're not already loading completions, load them.
-        elif not self.loading:
+        # If completions are loaded but we need to refresh them, clear them
+        if self.completions and self.refresh_completions():
+            logger.debug("Reloading completions for %s", self)
+            self.completions = set()
+
+        # if we're not already loading completions, and they aren't loaded, load them.
+        if (not self.loading) and (not self.completions):
+            logger.debug("Loading completions for %s", self)
             # If completions should be loaded asynchronously, and we don't want 
             # to wait on them, spawn a thread to load them.
             if self.LoadAsync and not wait:
@@ -268,12 +271,14 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
             # If completions are loading and the thread is still active, return empty
             if ((self.loader_thread is None) or self.loader_thread.is_alive()):
                 completion_queue.put(self.EmptyReturn)
-                return
-            # Otherwise, set loading to False
+            # Otherwise, set loading to False and return the completions
             else:
                 self.loading = False
-        # Add completions to queue and return
-        completion_queue.put(self.filter_completions(included_completions, **kwargs))
+                completion_queue.put(self.filter_completions(included_completions, **kwargs))
+        # Otherwise, just return the completions
+        else:
+            completion_queue.put(self.filter_completions(included_completions, **kwargs))
+
         return
 
     def refresh_completions(self):
