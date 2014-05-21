@@ -418,6 +418,20 @@ class FileLoader(CompletionLoader):
         """Return the last time the file was modified."""
         return os.path.getmtime(self.file_path)
 
+    @property
+    def file_contents(self):
+        """Reads in a file, returning each line in a list. Newlines are removed."""
+        with open(self.file_path, 'r') as f:
+            elements = [line.replace('\n','') for line in f]
+        return elements
+
+    @property
+    def file_contents_as_string(self):
+        """Reads in a file, returning the entire contents as a string."""
+        with open(self.file_path, 'r') as f:
+            contents = f.read()
+        return contents
+
 
 class PathLoader(CompletionLoader):
     """CompletionLoader for completions extracted from a fixed path.
