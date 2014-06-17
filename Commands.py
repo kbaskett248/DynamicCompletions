@@ -1,5 +1,5 @@
 import collections
-from queue import Queue
+from queue import Queue, Empty
 import threading
 
 import sublime_plugin
@@ -66,7 +66,6 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
         view - A sublime.View object for the current file
 
         """
-        logger.debug('Adding completions to the queue')
         # Build a queue of completers that can be run asynchronously (i.e. Not ViewCompleters)
         async_loaders = Queue()
         sync_loaders = []
@@ -93,15 +92,19 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
             """
             logger.debug('process_completers running')
             proceed = True
-            while not completers.empty():
+            while proceed:
                 try:
                     c = completers.get(timeout = 0.1)
                 except Empty:
                     proceed = False
                 else:
-                    c.get_completions(completion_types = completion_types,
-                                      completion_queue = completion_queue)
-                    completers.task_done()
+                    try:
+                        c.get_completions(completion_types = completion_types,
+                                          completion_queue = completion_queue)
+                    except Exception:
+                        logger.exception('Unhandled exception in CompletionLoader: %s', c)
+                    finally:
+                        completers.task_done()
 
             logger.debug('process_completers stopping')
 
@@ -121,9 +124,13 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
 
         # Process the synchronous completers in this thread
         for l in sync_loaders:
-            l.get_completions(completion_types = completion_types,
-                              completion_queue = completion_queue,
-                              view = view)
+            try:
+                l.get_completions(completion_types = completion_types,
+                                  completion_queue = completion_queue,
+                                  view = view)
+            except Exception:
+                logger.exception('Unhandled exception in CompletionLoader: %s', l)
+            
 
         # Wait for all the asynchronous completers to be processed
         async_loaders.join()

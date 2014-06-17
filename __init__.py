@@ -239,9 +239,9 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         included_completions = set(completion_types).intersection(set(self.completion_types()))
         if not included_completions:
             return
-
-        logger.debug('included_completions = %s', included_completions)
-        logger.debug("%s.loading = %s", self, self.loading)
+        logger.debug("get_completions start: %s", self)
+        # logger.debug('included_completions = %s', included_completions)
+        # logger.debug("%s.loading = %s", self, self.loading)
 
         # If completions are loaded but we need to refresh them, clear them
         if self.completions and self.refresh_completions():
@@ -275,7 +275,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         # Otherwise, just return the completions
         else:
             completion_queue.put(self.filter_completions(included_completions, **kwargs))
-
+        logger.debug("get_completions stop: %s", self)
         return
 
     def refresh_completions(self):
@@ -303,7 +303,11 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         if isinstance(self.completions, dict):
             completions = set()
             for t in completion_types:
-                completions.update(self.completions[t])
+                try:
+                    completions.update(self.completions[t])
+                except KeyError:
+                    logger.warning('CompletionLoader has no key "%s": %s', t, self)
+                
         else:
             completions = set(self.completions)
 
@@ -347,6 +351,9 @@ class StaticLoader(CompletionLoader):
             pass
         return [cls()]
 
+    def __repr__(self):
+        return self.__class__.__name__
+
 
 class ViewLoader(CompletionLoader):
     """CompletionLoader for completions extracted from a view.
@@ -358,6 +365,9 @@ class ViewLoader(CompletionLoader):
     def __init__(self, view = None, **kwargs):
         self.view = view
         super(ViewLoader, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return '%s(view = %s)' % (self.__class__.__name__, self.view.id())
 
     @property
     def instance_key(self):
@@ -396,6 +406,9 @@ class FileLoader(CompletionLoader):
         self.file_path = file_path
         self.last_modified_time = self.get_file_update_time()
         super(FileLoader, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, self.file_path)
 
     @property
     def instance_key(self):
@@ -444,6 +457,9 @@ class PathLoader(CompletionLoader):
     def __init__(self, path = None, **kwargs):
         self.path = path
         super(PathLoader, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, self.path)
 
     @property
     def instance_key(self):
