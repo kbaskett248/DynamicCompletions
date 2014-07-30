@@ -1,0 +1,4 @@
+This package provides no functionality on its own. It is a support package to make it easier
+for other packages to create more complex code completion tools.
+
+Currently, only the Meditech Focus package requires this package.
