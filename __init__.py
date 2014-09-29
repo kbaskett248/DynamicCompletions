@@ -13,13 +13,14 @@ try:
 except ImportError:
     import logging
     logger = logging.getLogger(__name__)
+    # logger.setLevel('DEBUG')
 
 class CompletionTrigger(object, metaclass = MiniPluginMeta):
     """Superclass for objects used to determine what types of completions to return."""
 
-    # Dictionary used to store data about a view. The dictionary is keyed by 
+    # Dictionary used to store data about a view. The dictionary is keyed by
     # the view ID and contains ViewData objects.
-    View_Data = dict() 
+    View_Data = dict()
 
     def __init__(self, view):
         super(CompletionTrigger, self).__init__()
@@ -105,13 +106,13 @@ class CompletionTrigger(object, metaclass = MiniPluginMeta):
 class CompletionLoader(object, metaclass = MiniPluginMeta):
     """Superclass for objects used to load completions."""
 
-    """The value to return for a matching completer when no completions are 
-    found or the completions are not loaded. 
+    """The value to return for a matching completer when no completions are
+    found or the completions are not loaded.
 
     Should be overridden by extending classes.
 
-    Use None if no completions should allow showing the built-in sublime 
-    completions. Use an empty list if no completions should block the 
+    Use None if no completions should allow showing the built-in sublime
+    completions. Use an empty list if no completions should block the
     built-in sublime completions.
     """
     EmptyReturn = ([],)
@@ -132,7 +133,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         """Initialize the CompletionLoader.
 
         This should be called by subclasses after all initialization for that
-        class is done so that the instance_key property has access to all 
+        class is done so that the instance_key property has access to all
         needed attributes.
 
         """
@@ -153,7 +154,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
     def add_instance(self):
         """Adds the current instance to the Instances list."""
         self.Instances[self.instance_key] = self
-    
+
     @classmethod
     @abstractmethod
     def completion_types(cls):
@@ -213,7 +214,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
 
     @classmethod
     def has_view_attr(view, name, default = None):
-        return ViewData.has_view_attr(view, name)        
+        return ViewData.has_view_attr(view, name)
 
     @classmethod
     def get_loaders_for_view(cls, view):
@@ -228,20 +229,21 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         completion_queue - A Queue that holds the completions from each Completer
         wait - True to force completions to load synchronously.
 
-        This function normally will not be overridden. 
-        If the completer is set to load completions asynchronously (LoadAsync 
+        This function normally will not be overridden.
+        If the completer is set to load completions asynchronously (LoadAsync
         is True), a thread is started to load the completions as long as wait
         is false. If completions should be loaded synchronously, or wait is
-        True, completions are loaded in the current thread. load_completions 
+        True, completions are loaded in the current thread. load_completions
         is called either way to load the completions.
 
         """
-        included_completions = set(completion_types).intersection(set(self.completion_types()))
+        included_completions = set(completion_types).intersection(
+            set(self.completion_types()))
         if not included_completions:
             return
         logger.debug("get_completions start: %s", self)
-        # logger.debug('included_completions = %s', included_completions)
-        # logger.debug("%s.loading = %s", self, self.loading)
+        logger.debug('included_completions = %s', included_completions)
+        logger.debug("%s.loading = %s", self, self.loading)
 
         # If completions are loaded but we need to refresh them, clear them
         if self.completions and self.refresh_completions():
@@ -251,17 +253,18 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         # if we're not already loading completions, and they aren't loaded, load them.
         if (not self.loading) and (not self.completions):
             logger.debug("Loading completions for %s", self)
-            # If completions should be loaded asynchronously, and we don't want 
+            # If completions should be loaded asynchronously, and we don't want
             # to wait on them, spawn a thread to load them.
             if self.LoadAsync and not wait:
                 self.loading = True
-                kwargs['included_completions'] = included_completions
+                kwargs['included_completions'] = included_completions.copy()
                 self.loader_thread = threading.Thread(target = self.load_completions, kwargs = kwargs)
                 self.loader_thread.start()
             # Otherwise, load them in the current thread
             else:
                 self.loading = True
-                self.load_completions(included_completions = included_completions, **kwargs)
+                self.load_completions(
+                    included_completions=included_completions.copy(), **kwargs)
                 self.loading = False
 
         if self.loading:
@@ -271,10 +274,12 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
             # Otherwise, set loading to False and return the completions
             else:
                 self.loading = False
-                completion_queue.put(self.filter_completions(included_completions, **kwargs))
+                completion_queue.put(
+                    self.filter_completions(included_completions, **kwargs))
         # Otherwise, just return the completions
         else:
-            completion_queue.put(self.filter_completions(included_completions, **kwargs))
+            completion_queue.put(
+                self.filter_completions(included_completions, **kwargs))
         logger.debug("get_completions stop: %s", self)
         return
 
@@ -291,15 +296,18 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         """Filters and returns the loaded completions based on the completion types requested.
 
         Keyword arguments:
-        completion_types - The types of completions that should be returned in 
+        completion_types - The types of completions that should be returned in
                            this instance.
 
         This function can be overridden by extending classes, but it usually
-        will not need to be. self.completions can be either a dict datatype 
+        will not need to be. self.completions can be either a dict datatype
         or a standard iterable. Completions are cleared by this function since
         ViewCompleters usually won't cache them.
 
         """
+
+        logger.debug('completion_types = %s', completion_types)
+        logger.debug('self.completions = %s', self.completions)
         if isinstance(self.completions, dict):
             completions = set()
             for t in completion_types:
@@ -307,7 +315,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
                     completions.update(self.completions[t])
                 except KeyError:
                     logger.warning('CompletionLoader has no key "%s": %s', t, self)
-                
+
         else:
             completions = set(self.completions)
 
@@ -469,7 +477,7 @@ class PathLoader(CompletionLoader):
 
         """
         return self.path
-        
+
 
 class ViewData(object):
     """Stores data for a view."""
@@ -498,14 +506,14 @@ class ViewData(object):
         """Returns a list of possible EntitySelector classes for a view.
 
         The selectors returned here are based in part on the primary source
-        scope for a view. That value is stored. If the value changes, the 
+        scope for a view. That value is stored. If the value changes, the
         list of possible EntitySelector classes is recomputed.
 
         """
         d = cls.get_data(view)
         scope = ViewData.scope_from_view(view)
         hash_ = ViewData.get_triggers_hash()
-        if ((d.scope != scope) or 
+        if ((d.scope != scope) or
             (d.triggers_hash != hash_)):
             d.scope = scope
             d.update_triggers(view)
@@ -540,7 +548,7 @@ class ViewData(object):
             scope = view.scope_name(view.sel()[0].begin())
         except IndexError:
             scope = view.scope_name(0)
-        
+
         return scope.split(' ')[0]
 
     @staticmethod
@@ -562,5 +570,5 @@ class ViewData(object):
         d = cls.get_data(view)
         return hasattr(d, name)
 
-        
-        
+
+
