@@ -15,7 +15,8 @@ except ImportError:
     logger = logging.getLogger(__name__)
     # logger.setLevel('DEBUG')
 
-class CompletionTrigger(object, metaclass = MiniPluginMeta):
+
+class CompletionTrigger(object, metaclass=MiniPluginMeta):
     """Superclass for objects used to determine what types of completions to return."""
 
     # Dictionary used to store data about a view. The dictionary is keyed by
@@ -103,7 +104,7 @@ class CompletionTrigger(object, metaclass = MiniPluginMeta):
         return list(completion_types)
 
 
-class CompletionLoader(object, metaclass = MiniPluginMeta):
+class CompletionLoader(object, metaclass=MiniPluginMeta):
     """Superclass for objects used to load completions."""
 
     """The value to return for a matching completer when no completions are
@@ -141,6 +142,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
         self.completions = []
         self.loading = False
         self.add_instance()
+        self.loader_thread = None
 
     @property
     def instance_key(self):
@@ -276,6 +278,7 @@ class CompletionLoader(object, metaclass = MiniPluginMeta):
                 self.loading = False
                 completion_queue.put(
                     self.filter_completions(included_completions, **kwargs))
+                self.loader_thread = None
         # Otherwise, just return the completions
         else:
             completion_queue.put(
@@ -388,14 +391,18 @@ class ViewLoader(CompletionLoader):
 
     @classmethod
     def instances_for_view(cls, view):
-        """Returns a list of instances of the given class to be used for the given view."""
+        """
+        Returns a list of instances of the given class to be used for the
+        given view.
+
+        """
         try:
             return [cls.Instances[view.id()]]
         except KeyError:
             pass
         except AttributeError:
             pass
-        return [cls(view = view)]
+        return [cls(view=view)]
 
     def refresh_completions(self):
         """Return True if the completions need to be reloaded."""
@@ -443,7 +450,7 @@ class FileLoader(CompletionLoader):
     def file_contents(self):
         """Reads in a file, returning each line in a list. Newlines are removed."""
         with open(self.file_path, 'r') as f:
-            elements = [line.replace('\n','') for line in f]
+            elements = [line.replace('\n', '') for line in f]
         return elements
 
     @property
@@ -513,8 +520,7 @@ class ViewData(object):
         d = cls.get_data(view)
         scope = ViewData.scope_from_view(view)
         hash_ = ViewData.get_triggers_hash()
-        if ((d.scope != scope) or
-            (d.triggers_hash != hash_)):
+        if ((d.scope != scope) or (d.triggers_hash != hash_)):
             d.scope = scope
             d.update_triggers(view)
 
@@ -527,6 +533,7 @@ class ViewData(object):
 
     @classmethod
     def remove_loader_from_view(cls, view, loader):
+        d = cls.get_data(view)
         try:
             d.loaders.remove(loader)
         except KeyError:
@@ -569,6 +576,3 @@ class ViewData(object):
     def has_view_attr(cls, view, name):
         d = cls.get_data(view)
         return hasattr(d, name)
-
-
-
