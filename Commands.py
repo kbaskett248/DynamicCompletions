@@ -12,6 +12,7 @@ try:
 except ImportError:
     import logging
     logger = logging.getLogger(__name__)
+    # logger.setLevel('DEBUG')
 
 class DynamicCompletionsCommand(sublime_plugin.EventListener):
     """General command for loading completions."""
@@ -54,7 +55,7 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
                                                      locations,
                                                      completion_types,
                                                      completions)
-        
+
         return completions
 
     def add_completions_to_queue(self, view, completion_queue, completion_types, loaders):
@@ -62,7 +63,7 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
 
         Keyword arguments:
         completion_queue - A Queue for holding the completions returned by the Completers
-        completion_types - A set of the types of completions needed 
+        completion_types - A set of the types of completions needed
         view - A sublime.View object for the current file
 
         """
@@ -85,8 +86,8 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
             view - A sublime.View object
 
             This function is structured so that it can be called from a thread
-            for concurrent processing. It cannot be used to process 
-            ViewCompleters due to the fact that commands obtain some type of 
+            for concurrent processing. It cannot be used to process
+            ViewCompleters due to the fact that commands obtain some type of
             thread lock on the view.
 
             """
@@ -99,12 +100,16 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
                     proceed = False
                 else:
                     try:
-                        c.get_completions(completion_types = completion_types,
-                                          completion_queue = completion_queue)
+                        c.get_completions(completion_types=completion_types,
+                                          completion_queue=completion_queue)
                     except Exception:
-                        logger.exception('Unhandled exception in CompletionLoader: %s', c)
+                        logger.exception(
+                            'Unhandled exception in CompletionLoader: %s', c)
                     finally:
                         completers.task_done()
+                    # c.get_completions(completion_types=completion_types,
+                    #                       completion_queue=completion_queue)
+                    # completers.task_done()
 
             logger.debug('process_completers stopping')
 
@@ -114,7 +119,7 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
         # Otherwise, run them in the current thread
         if async_loaders.qsize() > 3:
             for i in range(2):
-                t = threading.Thread(target = process_completers, 
+                t = threading.Thread(target = process_completers,
                                      args = (async_loaders, completion_types,
                                              completion_queue))
                 t.start()
@@ -130,7 +135,7 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
                                   view = view)
             except Exception:
                 logger.exception('Unhandled exception in CompletionLoader: %s', l)
-            
+
 
         # Wait for all the asynchronous completers to be processed
         async_loaders.join()
@@ -139,7 +144,7 @@ class DynamicCompletionsCommand(sublime_plugin.EventListener):
         """Returns a tuple of (completions, flags) based on the contents of the completion_queue.
 
         Keyword arguments:
-        completion_queue - A Queue object. The items in the queue should be 
+        completion_queue - A Queue object. The items in the queue should be
         either a collection of completions or a tuple of (completions, flags).
 
         """
